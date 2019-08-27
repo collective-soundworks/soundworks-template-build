@@ -73,10 +73,16 @@ function createNodeProcessWatcher(inputFolder, outputFolder) {
 
   const watcher = chokidar.watch(inputFolder);
 
-  watcher.on('add', pathname => compileOrCopy(pathname));
-  watcher.on('change', pathname => compileOrCopy(pathname));
+  watcher.on('add', pathname => {
+    compileOrCopy(pathname);
+  });
+
+  watcher.on('change', pathname => {
+    compileOrCopy(pathname);
+  });
+
   watcher.on('unlink', pathname => {
-    const outputFilename = inputFilename.replace(inputFolder, outputFolder);
+    const outputFilename = pathname.replace(inputFolder, outputFolder);
     fs.unlinkSync(outputFilename);
   });
 
