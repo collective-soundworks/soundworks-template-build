@@ -5,13 +5,16 @@
   ],
   "description": "soundworks-template build scripts",
   "license": "BSD-3-Clause",
-  "version": "3.0.0",
+  "version": "3.0.0-alpha.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/collective-soundworks/soundworks-template"
+    "url": "https://github.com/collective-soundworks/soundworks-template-build"
   },
   "scripts": {
-    "deploy": "np --yolo",
+    "deploy": "np --yolo"
   },
   "dependencies": {
     "@babel/core": "^7.4.5",
@@ -38,6 +41,6 @@
     "np": "^5.0.2"
   },
   "bin": {
-    "soundworks-template-build": "node ./bin/soundworks-template-build.js"
+    "soundworks-template-build": "./bin/soundworks-template-build.js"
   }
 }

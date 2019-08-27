@@ -92,7 +92,11 @@ function createBrowserWatcher(inputFile, outputFile) {
         inputSourceMap: true,
         sourceMap: "inline",
         presets: [
-          ["@babel/preset-env"]
+          ["@babel/preset-env",
+            {
+              targets: 'ios >= 9, not ie 11, not op_mini all'
+            }
+          ]
         ],
         plugins: [
           // ['@babel/plugin-transform-modules-commonjs'],
