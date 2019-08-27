@@ -13,6 +13,7 @@ const json = require('rollup-plugin-json');
 const nodeBuiltins = require('rollup-plugin-node-builtins');
 const globals = require('rollup-plugin-node-globals');
 const sourcemaps = require('rollup-plugin-sourcemaps');
+const JSON5 = require('json5');
 
 const cwd = process.cwd();
 
@@ -163,15 +164,6 @@ function createBrowserWatcher(inputFile, outputFile) {
 
 module.exports = function buildApplication(watch = false) {
   // -----------------------------------------
-  // config files
-  // -----------------------------------------
-  {
-    const configSrc = path.join('src', 'config');
-    const configDist = path.join('dist', 'config');
-    createNodeProcessWatcher(configSrc, configDist);
-  }
-
-  // -----------------------------------------
   // server files
   // -----------------------------------------
   {
@@ -187,8 +179,8 @@ module.exports = function buildApplication(watch = false) {
     // utility function
     function getClientTarget(name) {
       try {
-        const data = fs.readFileSync(path.join(cwd, 'application.json'));
-        const config = JSON.parse(data);
+        const data = fs.readFileSync(path.join(cwd, 'config', 'application.json'));
+        const config = JSON5.parse(data);
         const clientsConfig = config.clients
 
         if (clientsConfig[name] && clientsConfig[name].target) {
@@ -213,6 +205,7 @@ module.exports = function buildApplication(watch = false) {
 
     clients.forEach(clientName => {
       const target = getClientTarget(clientName);
+      console.log(chalk.yellow(`+ building client "${clientName}" for ${target || 'undefined'} target`));
       // thing clients or any shared/utils file
       if (target !== 'browser') {
         const inputFolder = path.join('src', 'clients', clientName);
