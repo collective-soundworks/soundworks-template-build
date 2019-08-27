@@ -1,0 +1,7 @@
+# transpiled files and dependencies
+/node_modules
+
+# ignore junk files
+package-lock.json
+.DS_Store
+Thumbs.db
