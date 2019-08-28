@@ -168,7 +168,7 @@ module.exports = function buildApplication(watch = false) {
   // -----------------------------------------
   {
     const configSrc = path.join('src', 'server');
-    const configDist = path.join('dist', 'server');
+    const configDist = path.join('.build', 'server');
     createNodeProcessWatcher(configSrc, configDist);
   }
 
@@ -209,11 +209,11 @@ module.exports = function buildApplication(watch = false) {
       // thing clients or any shared/utils file
       if (target !== 'browser') {
         const inputFolder = path.join('src', 'clients', clientName);
-        const outputFolder = path.join('dist', clientName);
+        const outputFolder = path.join('.build', clientName);
         createNodeProcessWatcher(inputFolder, outputFolder);
       } else {
         const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
-        const outputFile = path.join(cwd, 'public', 'dist', 'js', `${clientName}.js`);
+        const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
         createBrowserWatcher(inputFile, outputFile);
       }
     });

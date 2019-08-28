@@ -12,6 +12,10 @@ const processes = new Map();
 
 // run the in a forked process
 const start = function(src) {
+  if (!fs.existsSync(src)) {
+    throw new Error(`Cannot start process "${processName}": file "${src}" does not exists`);
+  }
+
   fs.stat(src, (err, stats) => {
     if (err) {
       reject(src);
@@ -40,11 +44,7 @@ const stop = function(src) {
 }
 
 module.exports = function watchProcess(processName) {
-  const processPath = path.join('dist', processName);
-
-  if (!fs.existsSync(processPath)) {
-    throw new Error(`Cannot start process "${processName}": file "${processPath}" does not exists`);
-  }
+  const processPath = path.join('.build', processName);
 
   let ignoreInitial = false;
 

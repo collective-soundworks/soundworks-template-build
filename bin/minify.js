@@ -6,7 +6,7 @@ const path = require('path');
 const Terser = require('terser');
 
 module.exports = function minify() {
-  const publicJsDirectory = path.join('public', 'dist', 'js');
+  const publicJsDirectory = path.join('.build', 'public');
   fs.ensureDirSync(publicJsDirectory);
 
   let files;
