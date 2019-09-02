@@ -11,7 +11,6 @@ const processes = new Map();
 
 // run the in a forked process
 const start = function(src, inspect) {
-  console.log('start', src);
   if (!fs.existsSync(src)) {
     throw new Error(`Cannot start process "${processName}": file "${src}" does not exists`);
   }

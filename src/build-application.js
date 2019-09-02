@@ -96,6 +96,7 @@ function createBrowserWatcher(inputFile, outputFile) {
     plugins: [
       commonjs(),
       rollupBabel({
+        sourceMaps: true,
         inputSourceMap: true,
         sourceMap: "inline",
         presets: [
