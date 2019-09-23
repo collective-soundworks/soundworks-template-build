@@ -190,7 +190,7 @@ module.exports = function buildApplication(watch = false) {
           return null;
         };
       } catch(err) {
-        console.log(chalk.red('> Invalid `application.json` file'));
+        console.log(chalk.red('> Invalid `config/application.json` file'));
         process.exit(0);
       }
     }

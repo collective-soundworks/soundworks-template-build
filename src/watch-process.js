@@ -27,7 +27,8 @@ const start = function(src, inspect) {
     const options = inspect ? { execArgv: ['--inspect'] } : {};
     const delay = inspect ? 100 : 0;
 
-    // the timeout only works because of the debounce
+    // @important - the timeout only works because of the debounce
+    // this is needed when restarting for the
     setTimeout(() => {
       const proc = fork(src, [], options);
       processes.set(src, proc);
@@ -51,17 +52,8 @@ const stop = function(src) {
 module.exports = function watchProcess(processName, inspect) {
   const processPath = path.join('.build', processName);
 
-  let ignoreInitial = false;
-
-  // really not sure it's needed with the debounce
-  if (processName === 'server') {
-    ignoreInitial = true;
-  }
-
   const watcher = chokidar.watch(processPath, {
-    // ignored: /^\./, // ignore itself in this case...
-    persistent: true,
-    ignoreInitial,
+    ignoreInitial: true,
   });
 
   console.log(chalk.cyan(`> watching process\t ${processPath}`));
@@ -69,7 +61,10 @@ module.exports = function watchProcess(processName, inspect) {
   watcher
     // .on('add', debounce(filename => start(processPath, inspect), 300)) // probably not really needed
     .on('change', debounce(filename => start(processPath, inspect), 500))
-    .on('unlink', filename => stop(processPath));
+    // .on('unlink', filename => start(processPath));
+
+  // as we ignore initial changes we can start the process now
+  start(processPath, inspect);
 }
 
 
