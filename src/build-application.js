@@ -17,28 +17,14 @@ const JSON5 = require('json5');
 
 const cwd = process.cwd();
 
-const watchers = {
-  node: [],
-  browser: [],
-};
+// we need support for iOS 9.3.5
+const browserList = 'ios >= 9, not ie 11, not op_mini all';
 
-function closeWatchers() {
-  watchers.node.forEach(watcher => {
-    watcher.on('ready', () => {
-      watcher.close();
-    });
-  });
+function createNodeWatcher(inputFolder, outputFolder, watch) {
+  // if watch is true, we want to ignore the initial watcher scan and resolve early
+  // if watch is false, we want to wait for the whole directory to be build before resolving
+  const initialScanPromises = [];
 
-  watchers.browser.forEach(watcher => {
-    watcher.on('event', e => {
-      if (e.code === 'END') {
-        watcher.close();
-      }
-    });
-  });
-}
-
-function createNodeProcessWatcher(inputFolder, outputFolder) {
   function compileOrCopy(pathname) {
     if (fs.lstatSync(pathname).isDirectory()) {
       return;
@@ -49,48 +35,71 @@ function createNodeProcessWatcher(inputFolder, outputFolder) {
     fs.ensureFileSync(outputFilename);
 
     if (/(\.js|\.mjs)$/.test(inputFilename)) {
-      babel.transformFile(inputFilename, {
-        inputSourceMap: true,
-        sourceMap: "inline",
-        plugins: [
-          ['@babel/plugin-transform-modules-commonjs'],
-          ['@babel/plugin-transform-arrow-functions'],
-          ['@babel/plugin-proposal-class-properties', { loose : true }]
-        ]
-      }, function (err, result) {
-        if (err) {
-          return console.log(err.message);
-        }
+      const promise = new Promise((resolve, reject) => {
+        babel.transformFile(inputFilename, {
+          inputSourceMap: true,
+          sourceMap: "inline",
+          plugins: [
+            ['@babel/plugin-transform-modules-commonjs'],
+            ['@babel/plugin-transform-arrow-functions'],
+            ['@babel/plugin-proposal-class-properties', { loose : true }]
+          ]
+        }, function (err, result) {
+          if (err) {
+            return console.log(err.message);
+            reject();
+          }
 
-        fs.writeFileSync(outputFilename, result.code);
-        console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+          resolve();
+          fs.writeFileSync(outputFilename, result.code);
+          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+        });
+      });
+
+      if (!watch) {
+        initialScanPromises.push(promise);
       }
-    );
     } else {
       fs.copyFileSync(inputFilename, outputFilename);
       console.log(chalk.green(`> copied\t ${inputFilename}`));
+
+      if (!watch) {
+        initialScanPromises.push(Promise.resolve());
+      }
     }
   }
 
-  const watcher = chokidar.watch(inputFolder);
+  const chokidarOptions = watch ? { ignoreInitial: true } : {};
+  const watcher = chokidar.watch(inputFolder, chokidarOptions);
 
-  watcher.on('add', pathname => {
-    compileOrCopy(pathname);
-  });
-
-  watcher.on('change', pathname => {
-    compileOrCopy(pathname);
-  });
-
+  watcher.on('add', pathname => compileOrCopy(pathname));
+  watcher.on('change', pathname => compileOrCopy(pathname));
   watcher.on('unlink', pathname => {
     const outputFilename = pathname.replace(inputFolder, outputFolder);
     fs.unlinkSync(outputFilename);
   });
 
-  watchers.node.push(watcher);
+  if (watch) {
+    return Promise.resolve();
+  } else {
+    return new Promise(resolve => {
+      // initial scan is done, we kill the watcher
+      // and wait the files to be transpiled
+      watcher.on('ready', () => {
+        watcher.close();
+        Promise.all(initialScanPromises).then(resolve);
+      });
+    });
+  }
 }
 
-function createBrowserWatcher(inputFile, outputFile) {
+function createBrowserWatcher(inputFile, outputFile, watch) {
+  // if watch is true, we want to ignore the initial watcher scan and resolve early
+  // if watch is false, we want to wait for the whole directory to be build before resolving
+
+  // this does seem to work properly...
+  const chokidarOptions = watch ? { ignoreInitial: true } : {};
+
   const watcher = rollup.watch({
     input: inputFile,
     plugins: [
@@ -102,7 +111,7 @@ function createBrowserWatcher(inputFile, outputFile) {
         presets: [
           ["@babel/preset-env",
             {
-              targets: 'ios >= 9, not ie 11, not op_mini all'
+              targets: browserList,
             }
           ]
         ],
@@ -141,7 +150,7 @@ function createBrowserWatcher(inputFile, outputFile) {
       },
     ],
     watch: {
-      chokidar: true,
+      chokidar: chokidarOptions,
       clearScreen: false,
     }
   });
@@ -149,28 +158,38 @@ function createBrowserWatcher(inputFile, outputFile) {
   watcher.on('event', (e) => {
     if (e.code === 'BUNDLE_END') {
       console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
-    } else if (e.code === 'ERROR') {
+      resolve();
+    } else if (e.code === 'ERROR' || e.code === 'FATAL') {
       console.log(chalk.red(e.error.message));
       console.log(e.error.frame);
-    } else if (e.code === 'FATAL') {
-      console.log(chalk.red(e.error.message));
-      console.log(e.error.frame);
-      closeWatchers();
     }
   });
 
-  watchers.browser.push(watcher);
+  return new Promise((resolve, reject) => {
+    watcher.on('event', (e) => {
+      if (e.code === 'BUNDLE_END' || e.code === 'ERROR' || e.code === 'FATAL') {
+        // we wait for the bundle even in watch mode because rollup.watch cannot
+        // ignore initial and we want to avoid parallel builds
+        resolve();
+        if (!watch) {
+          watcher.close();
+        }
+      }
+    });
+  });
 }
 
 
-module.exports = function buildApplication(watch = false) {
+module.exports = async function buildApplication(watch = false) {
+  const cmdString = watch ? 'watching' : 'building';
   // -----------------------------------------
   // server files
   // -----------------------------------------
   {
+    console.log(chalk.yellow(`+ ${cmdString} server`));
     const configSrc = path.join('src', 'server');
     const configDist = path.join('.build', 'server');
-    createNodeProcessWatcher(configSrc, configDist);
+    await createNodeWatcher(configSrc, configDist, watch);
   }
 
   // -----------------------------------------
@@ -202,28 +221,39 @@ module.exports = function buildApplication(watch = false) {
       const relPath = path.join(clientsSrc, filename);
       const isDir = fs.lstatSync(relPath).isDirectory();
       return isDir;
+    }).sort((a, b) => {
+      // we want to build the browsers files last
+      const aTarget = getClientTarget(a);
+      return (aTarget === 'browser') ? 1 : -1;
     });
 
-    clients.forEach(clientName => {
+    for (let clientName of clients) {
       const target = getClientTarget(clientName);
-      console.log(chalk.yellow(`+ building client "${clientName}" for ${target || 'undefined'} target`));
-      // thing clients or any shared/utils file
+      // IoT clients or any shared/utils file
       if (target !== 'browser') {
+        if (target === 'node') {
+          console.log(chalk.yellow(`+ ${cmdString} node client "${clientName}"`));
+        } else {
+          console.log(chalk.yellow(`+ ${cmdString} folder "${clientName}"`));
+        }
+
         const inputFolder = path.join('src', 'clients', clientName);
         const outputFolder = path.join('.build', clientName);
-        createNodeProcessWatcher(inputFolder, outputFolder);
+        await createNodeWatcher(inputFolder, outputFolder, watch);
+      // regular browser clients
       } else {
+        console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
         const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
         const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
-        createBrowserWatcher(inputFile, outputFile);
+        await createBrowserWatcher(inputFile, outputFile, watch);
       }
-    });
+    }
   }
 
-  // if not watch, close all watchers
-  if (watch === false) {
-    closeWatchers();
-  }
+  process.on('SIGINT', function() {
+    console.log(chalk.cyan('\n>>> EXIT'))
+    process.exit();
+  });
 }
 
 

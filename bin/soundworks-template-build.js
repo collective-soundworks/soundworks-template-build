@@ -10,12 +10,13 @@ program
   .option('-b, --build', 'build application')
   .option('-w, --watch', 'watch file system to rebuild application')
   .option('-p, --watch-process <name>', 'restart a node process on each build')
-  .option('-pi, --watch-process-inspect <name>', 'restart a node process on each build')
+  .option('-pi, --watch-process-inspect <name>', 'restart a node process on each build (with inspect enable)')
   .option('-m, --minify', 'minify browser js files')
   .option('-c, --clean', 'clean project')
 ;
 
 program.parse(process.argv);
+// console.log(process.argv);
 
 if (program.build) {
   buildApplication(program.watch);
