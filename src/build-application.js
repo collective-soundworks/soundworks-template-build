@@ -6,10 +6,12 @@ const fs = require('fs-extra');
 const path = require('path');
 const rollup = require('rollup');
 
-const commonjs = require('rollup-plugin-commonjs');
-const rollupBabel = require('rollup-plugin-babel');
-const resolve = require('rollup-plugin-node-resolve');
-const json = require('rollup-plugin-json');
+const rollupBabel = require('@rollup/plugin-babel').babel;
+const commonjs = require('@rollup/plugin-commonjs');
+const resolve = require('@rollup/plugin-node-resolve').default;
+const json = require('@rollup/plugin-json');
+
+// (re-)define why we need these...
 const nodeBuiltins = require('rollup-plugin-node-builtins');
 const globals = require('rollup-plugin-node-globals');
 const sourcemaps = require('rollup-plugin-sourcemaps');
@@ -108,6 +110,7 @@ function createBrowserWatcher(inputFile, outputFile, watch) {
         sourceMaps: true,
         inputSourceMap: true,
         sourceMap: "inline",
+        babelHelpers: 'bundled',
         presets: [
           ["@babel/preset-env",
             {
@@ -119,7 +122,7 @@ function createBrowserWatcher(inputFile, outputFile, watch) {
           // ['@babel/plugin-transform-modules-commonjs'],
           ['@babel/plugin-transform-arrow-functions'],
           ['@babel/plugin-proposal-class-properties', { loose : true }]
-        ]
+        ],
       }),
       resolve({
         mainFields: ['browser', 'module', 'main'],
@@ -139,14 +142,14 @@ function createBrowserWatcher(inputFile, outputFile, watch) {
         file: outputFile,
         format: 'iife',
         sourcemap: 'inline',
-        onwarn(warning, warn) {
-          // skip certain warnings
-          if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
-          // throw on others
-          if (warning.code === 'NON_EXISTENT_EXPORT') throw new Error(warning.message);
-          // Use default for everything else
-          warn(warning);
-        }
+        // onwarn(warning, warn) {
+        //   // skip certain warnings
+        //   if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
+        //   // throw on others
+        //   if (warning.code === 'NON_EXISTENT_EXPORT') throw new Error(warning.message);
+        //   // Use default for everything else
+        //   warn(warning);
+        // }
       },
     ],
     watch: {
@@ -158,7 +161,6 @@ function createBrowserWatcher(inputFile, outputFile, watch) {
   watcher.on('event', (e) => {
     if (e.code === 'BUNDLE_END') {
       console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
-      resolve();
     } else if (e.code === 'ERROR' || e.code === 'FATAL') {
       console.log(chalk.red(e.error.message));
       console.log(e.error.frame);
