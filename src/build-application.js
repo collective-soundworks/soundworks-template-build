@@ -1,43 +1,30 @@
 #!/usr/bin/env node
+const path = require('path');
 const babel = require('@babel/core');
 const chalk = require('chalk')
 const chokidar = require('chokidar');
 const fs = require('fs-extra');
-const path = require('path');
-const rollup = require('rollup');
-
-const rollupBabel = require('@rollup/plugin-babel').babel;
-const commonjs = require('@rollup/plugin-commonjs');
-const resolve = require('@rollup/plugin-node-resolve').default;
-const json = require('@rollup/plugin-json');
-
-// (re-)define why we need these...
-const nodeBuiltins = require('rollup-plugin-node-builtins');
-const globals = require('rollup-plugin-node-globals');
-const sourcemaps = require('rollup-plugin-sourcemaps');
+const webpack = require('webpack');
 const JSON5 = require('json5');
+const klawSync = require('klaw-sync');
 
 const cwd = process.cwd();
 
 // we need support for iOS 9.3.5
 const browserList = 'ios >= 9, not ie 11, not op_mini all';
 
-function createNodeWatcher(inputFolder, outputFolder, watch) {
-  // if watch is true, we want to ignore the initial watcher scan and resolve early
-  // if watch is false, we want to wait for the whole directory to be build before resolving
-  const initialScanPromises = [];
-
+function bundleNode(inputFolder, outputFolder, watch) {
   function compileOrCopy(pathname) {
     if (fs.lstatSync(pathname).isDirectory()) {
-      return;
+      return Promise.resolve();
     }
 
-    const inputFilename = pathname;
-    const outputFilename = inputFilename.replace(inputFolder, outputFolder);
-    fs.ensureFileSync(outputFilename);
+    return new Promise((resolve, reject) => {
+      const inputFilename = pathname;
+      const outputFilename = inputFilename.replace(inputFolder, outputFolder);
+      fs.ensureFileSync(outputFilename);
 
-    if (/(\.js|\.mjs)$/.test(inputFilename)) {
-      const promise = new Promise((resolve, reject) => {
+      if (/(\.js|\.mjs)$/.test(inputFilename)) {
         babel.transformFile(inputFilename, {
           inputSourceMap: true,
           sourceMap: "inline",
@@ -56,133 +43,116 @@ function createNodeWatcher(inputFolder, outputFolder, watch) {
           fs.writeFileSync(outputFilename, result.code);
           console.log(chalk.green(`> transpiled\t ${inputFilename}`));
         });
-      });
-
-      if (!watch) {
-        initialScanPromises.push(promise);
+      } else {
+        fs.copyFileSync(inputFilename, outputFilename);
+        console.log(chalk.green(`> copied\t ${inputFilename}`));
+        resolve();
       }
-    } else {
-      fs.copyFileSync(inputFilename, outputFilename);
-      console.log(chalk.green(`> copied\t ${inputFilename}`));
-
-      if (!watch) {
-        initialScanPromises.push(Promise.resolve());
-      }
-    }
+    });
   }
 
-  const chokidarOptions = watch ? { ignoreInitial: true } : {};
-  const watcher = chokidar.watch(inputFolder, chokidarOptions);
-
-  watcher.on('add', pathname => compileOrCopy(pathname));
-  watcher.on('change', pathname => compileOrCopy(pathname));
-  watcher.on('unlink', pathname => {
-    const outputFilename = pathname.replace(inputFolder, outputFolder);
-    fs.unlinkSync(outputFilename);
-  });
-
-  if (watch) {
-    return Promise.resolve();
+  if (!watch) {
+    const files = klawSync(inputFolder);
+    const relFiles = files.map(f => path.relative(process.cwd(), f.path));
+    const promises = relFiles.map(f => compileOrCopy(f));
+    return Promise.all(promises);
   } else {
-    return new Promise(resolve => {
-      // initial scan is done, we kill the watcher
-      // and wait the files to be transpiled
-      watcher.on('ready', () => {
-        watcher.close();
-        Promise.all(initialScanPromises).then(resolve);
-      });
+    const chokidarOptions = watch ? { ignoreInitial: true } : {};
+    const watcher = chokidar.watch(inputFolder, chokidarOptions);
+
+    watcher.on('add', pathname => compileOrCopy(pathname));
+    watcher.on('change', pathname => compileOrCopy(pathname));
+    watcher.on('unlink', pathname => {
+      const outputFilename = pathname.replace(inputFolder, outputFolder);
+      fs.unlinkSync(outputFilename);
     });
+
+    return Promise.resolve();
   }
 }
 
-function createBrowserWatcher(inputFile, outputFile, watch) {
-  // if watch is true, we want to ignore the initial watcher scan and resolve early
-  // if watch is false, we want to wait for the whole directory to be build before resolving
-
-  // this does seem to work properly...
-  const chokidarOptions = watch ? { ignoreInitial: true } : {};
-
-  const watcher = rollup.watch({
-    input: inputFile,
-    plugins: [
-      commonjs(),
-      rollupBabel({
-        sourceMaps: true,
-        inputSourceMap: true,
-        sourceMap: "inline",
-        babelHelpers: 'bundled',
-        presets: [
-          ["@babel/preset-env",
-            {
-              targets: browserList,
+function bundleBrowser(inputFile, outputFile, watch) {
+  const compiler = webpack({
+    mode: 'development',
+    devtool: 'eval-cheap-module-source-map',
+    entry: inputFile,
+    output: {
+      path: path.dirname(outputFile),
+      filename: path.basename(outputFile),
+    },
+    resolveLoader: {
+      modules: [path.join(__dirname, '..', 'node_modules')]
+    },
+    module: {
+      rules: [
+        // {
+        //   enforce: 'pre',
+        //   test: /\.(js|mjs)$/,
+        //   exclude: /node_modules/,
+        //   use: 'eslint-loader'
+        // },
+        {
+          test: /\.(js|mjs)$/,
+          // 'exclude': /node_modules/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              presets: [
+                ['@babel/preset-env',
+                  {
+                    targets: browserList,
+                  }
+                ]
+              ],
+              plugins: [
+                // ['@babel/plugin-transform-modules-commonjs'],
+                ['@babel/plugin-transform-arrow-functions'],
+                ['@babel/plugin-proposal-class-properties', { loose : true }]
+              ],
             }
-          ]
-        ],
-        plugins: [
-          // ['@babel/plugin-transform-modules-commonjs'],
-          ['@babel/plugin-transform-arrow-functions'],
-          ['@babel/plugin-proposal-class-properties', { loose : true }]
-        ],
-      }),
-      resolve({
-        mainFields: ['browser', 'module', 'main'],
-        preferBuiltins: false,
-      }),
-      json(),
-      nodeBuiltins(),
-      globals({
-        buffer: false,
-        dirname: false,
-        filename: false,
-      }),
-      sourcemaps(),
-    ],
-    output: [
-      {
-        file: outputFile,
-        format: 'iife',
-        sourcemap: 'inline',
-        // onwarn(warning, warn) {
-        //   // skip certain warnings
-        //   if (warning.code === 'UNUSED_EXTERNAL_IMPORT') return;
-        //   // throw on others
-        //   if (warning.code === 'NON_EXISTENT_EXPORT') throw new Error(warning.message);
-        //   // Use default for everything else
-        //   warn(warning);
-        // }
-      },
-    ],
-    watch: {
-      chokidar: chokidarOptions,
-      clearScreen: false,
-    }
-  });
-
-  watcher.on('event', (e) => {
-    if (e.code === 'BUNDLE_END') {
-      console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
-    } else if (e.code === 'ERROR' || e.code === 'FATAL') {
-      console.log(chalk.red(e.error.message));
-      console.log(e.error.frame);
-    }
-  });
-
-  return new Promise((resolve, reject) => {
-    watcher.on('event', (e) => {
-      if (e.code === 'BUNDLE_END' || e.code === 'ERROR' || e.code === 'FATAL') {
-        // we wait for the bundle even in watch mode because rollup.watch cannot
-        // ignore initial and we want to avoid parallel builds
-        resolve();
-        if (!watch) {
-          watcher.close();
+          }
         }
-      }
-    });
+      ]
+    }
   });
+
+  if (!watch) {
+    return new Promise((resolve, reject) => {
+      compiler.run((err, stats) => {
+        if (err || stats.hasErrors()) {
+          console.log(stats.compilation.errors);
+        }
+
+        console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        resolve();
+      });
+    });
+  } else {
+    // we can't ignore initial build, so let's keep everything sequencial
+    return new Promise((resolve, reject) => {
+      const watching = compiler.watch({
+        aggregateTimeout: 300,
+        poll: undefined
+      }, (err, stats) => { // Stats Object
+        if (err || stats.hasErrors()) {
+          console.log(stats.compilation.errors);
+        }
+
+        console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        resolve();
+      });
+    });
+  }
 }
 
 
 module.exports = async function buildApplication(watch = false) {
+  if (watch) {
+    console.log('watching', process.pid);
+  } else {
+    console.log('building', process.pid);
+  }
+
   const cmdString = watch ? 'watching' : 'building';
   // -----------------------------------------
   // server files
@@ -191,7 +161,7 @@ module.exports = async function buildApplication(watch = false) {
     console.log(chalk.yellow(`+ ${cmdString} server`));
     const configSrc = path.join('src', 'server');
     const configDist = path.join('.build', 'server');
-    await createNodeWatcher(configSrc, configDist, watch);
+    await bundleNode(configSrc, configDist, watch);
   }
 
   // -----------------------------------------
@@ -231,6 +201,7 @@ module.exports = async function buildApplication(watch = false) {
 
     for (let clientName of clients) {
       const target = getClientTarget(clientName);
+
       // IoT clients or any shared/utils file
       if (target !== 'browser') {
         if (target === 'node') {
@@ -241,13 +212,15 @@ module.exports = async function buildApplication(watch = false) {
 
         const inputFolder = path.join('src', 'clients', clientName);
         const outputFolder = path.join('.build', clientName);
-        await createNodeWatcher(inputFolder, outputFolder, watch);
+        await bundleNode(inputFolder, outputFolder, watch);
+
       // regular browser clients
       } else {
         console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
+
         const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
         const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
-        await createBrowserWatcher(inputFile, outputFile, watch);
+        await bundleBrowser(inputFile, outputFile, watch);
       }
     }
   }
