@@ -71,10 +71,32 @@ function bundleNode(inputFolder, outputFolder, watch) {
   }
 }
 
-function bundleBrowser(inputFile, outputFile, watch) {
+function bundleBrowser(inputFile, outputFile, watch, minify) {
+  let mode = 'development';
+  let devTools = 'eval-cheap-module-source-map';
+
+  const babelPresets = [
+    ['@babel/preset-env',
+      {
+        targets: browserList,
+      }
+    ]
+  ];
+
+  // production
+  if (minify) {
+    mode = 'production';
+    devTools = false;
+
+    babelPresets.push(['minify', {
+      builtIns: false,
+    }]);
+
+  }
+
   const compiler = webpack({
-    mode: 'development',
-    devtool: 'eval-cheap-module-source-map',
+    mode: mode,
+    devtool: devTools,
     entry: inputFile,
     output: {
       path: path.dirname(outputFile),
@@ -85,25 +107,13 @@ function bundleBrowser(inputFile, outputFile, watch) {
     },
     module: {
       rules: [
-        // {
-        //   enforce: 'pre',
-        //   test: /\.(js|mjs)$/,
-        //   exclude: /node_modules/,
-        //   use: 'eslint-loader'
-        // },
         {
           test: /\.(js|mjs)$/,
           // 'exclude': /node_modules/,
           use: {
             loader: 'babel-loader',
             options: {
-              presets: [
-                ['@babel/preset-env',
-                  {
-                    targets: browserList,
-                  }
-                ]
-              ],
+              presets: babelPresets,
               plugins: [
                 // ['@babel/plugin-transform-modules-commonjs'],
                 ['@babel/plugin-transform-arrow-functions'],
@@ -146,13 +156,7 @@ function bundleBrowser(inputFile, outputFile, watch) {
 }
 
 
-module.exports = async function buildApplication(watch = false) {
-  if (watch) {
-    console.log('watching', process.pid);
-  } else {
-    console.log('building', process.pid);
-  }
-
+module.exports = async function buildApplication(watch = false, minify = false) {
   const cmdString = watch ? 'watching' : 'building';
   // -----------------------------------------
   // server files
@@ -221,6 +225,12 @@ module.exports = async function buildApplication(watch = false) {
         const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
         const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
         await bundleBrowser(inputFile, outputFile, watch);
+
+        if (minify) {
+          console.log(chalk.yellow(`+ minifying browser client "${clientName}"`));
+          const minOutputFile = path.join(cwd, '.build', 'public', `${clientName}.min.js`);
+          await bundleBrowser(inputFile, minOutputFile, false, true);
+        }
       }
     }
   }
