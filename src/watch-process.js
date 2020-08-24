@@ -12,7 +12,8 @@ const processes = new Map();
 // run the in a forked process
 const start = function(src, inspect) {
   if (!fs.existsSync(src)) {
-    throw new Error(`Cannot start process "${processName}": file "${src}" does not exists`);
+    throw new Error(`Cannot start process: file "${src}" does not exists.
+try to run \`num run build\``);
   }
 
   fs.stat(src, (err, stats) => {
