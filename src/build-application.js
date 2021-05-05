@@ -13,6 +13,11 @@ const cwd = process.cwd();
 // we need support for iOS 9.3.5
 const browserList = 'ios >= 9, not ie 11, not op_mini all';
 
+/**
+ * All babel plugins we use are contained in the preset-env, so no need to
+ * have them in dependencies.
+ */
+
 function bundleNode(inputFolder, outputFolder, watch) {
   function compileOrCopy(pathname) {
     if (fs.lstatSync(pathname).isDirectory()) {
@@ -29,9 +34,10 @@ function bundleNode(inputFolder, outputFolder, watch) {
           inputSourceMap: true,
           sourceMap: "inline",
           plugins: [
-            ['@babel/plugin-transform-modules-commonjs'],
-            ['@babel/plugin-transform-arrow-functions'],
-            ['@babel/plugin-proposal-class-properties', { loose : true }]
+            // clean resolve even if using `npm link`:
+            // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
+            [require.resolve('@babel/plugin-transform-modules-commonjs')],
+            [require.resolve('@babel/plugin-proposal-class-properties')],
           ]
         }, function (err, result) {
           if (err) {
@@ -76,7 +82,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
   let devTools = 'eval-cheap-module-source-map';
 
   const babelPresets = [
-    ['@babel/preset-env',
+    [require.resolve('@babel/preset-env'),
       {
         targets: browserList,
       }
@@ -102,22 +108,22 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
     },
-    resolveLoader: {
-      modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
-    },
+    // resolveLoader: {
+    //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
+    // },
     module: {
       rules: [
         {
           test: /\.(js|mjs)$/,
           // 'exclude': /node_modules/,
           use: {
-            loader: 'babel-loader',
+            loader: require.resolve('babel-loader'),
             options: {
               presets: babelPresets,
               plugins: [
                 // ['@babel/plugin-transform-modules-commonjs'],
-                ['@babel/plugin-transform-arrow-functions'],
-                ['@babel/plugin-proposal-class-properties', { loose : true }]
+                [require.resolve('@babel/plugin-transform-arrow-functions')],
+                [require.resolve('@babel/plugin-proposal-class-properties')],
               ],
             }
           }

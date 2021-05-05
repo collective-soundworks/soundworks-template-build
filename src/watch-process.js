@@ -29,7 +29,7 @@ Cannot start process: file "${src}" does not exists.
       await stop(src);
     }
 
-    const options = inspect ? { execArgv: ['--inspect'] } : {};
+    const options = inspect ? { execArgv: ['--inspect', '--trace-deprecation'] } : {};
     const delay = inspect ? 100 : 0;
 
     // @important - the timeout is needed for the inspect to properly exit
