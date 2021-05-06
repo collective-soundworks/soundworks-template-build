@@ -14,7 +14,8 @@
     "url": "https://github.com/collective-soundworks/soundworks-template-build"
   },
   "scripts": {
-    "deploy": "np --yolo"
+    "deploy": "np --yolo",
+    "check-types": "tsc"
   },
   "dependencies": {
     "@babel/core": "^7.10.5",
@@ -33,5 +34,11 @@
   },
   "bin": {
     "soundworks-template-build": "./bin/soundworks-template-build.js"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.13.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.13.8",
+    "@babel/preset-typescript": "^7.13.0",
+    "typescript": "^4.2.4"
   }
 }

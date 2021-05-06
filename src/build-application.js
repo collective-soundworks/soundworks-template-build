@@ -82,6 +82,10 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
   let devTools = 'eval-cheap-module-source-map';
 
   const babelPresets = [
+    [require.resolve('@babel/preset-typescript'),
+    {
+      targets: browserList,
+    }],
     [require.resolve('@babel/preset-env'),
       {
         targets: browserList,
@@ -108,13 +112,16 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
     },
+    resolve: {
+      extensions: [".js", ".json", ".jsx", ".ts"],
+    },
     // resolveLoader: {
     //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
     // },
     module: {
       rules: [
         {
-          test: /\.(js|mjs)$/,
+          test: /\.(js|mjs|ts)$/,
           // 'exclude': /node_modules/,
           use: {
             loader: require.resolve('babel-loader'),
@@ -124,6 +131,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
                 // ['@babel/plugin-transform-modules-commonjs'],
                 [require.resolve('@babel/plugin-transform-arrow-functions')],
                 [require.resolve('@babel/plugin-proposal-class-properties')],
+                [require.resolve('@babel/plugin-proposal-object-rest-spread')]
               ],
             }
           }
@@ -139,7 +147,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
           console.log(stats.compilation.errors);
         }
 
-        console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        console.log(chalk.greenBright(`> bundled\t ${outputFile.replace(cwd, '')}`));
         resolve();
       });
     });
