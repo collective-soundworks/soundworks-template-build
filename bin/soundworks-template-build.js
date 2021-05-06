@@ -5,6 +5,7 @@ const buildApplication = require('../src/build-application');
 const watchProcess = require('../src/watch-process');
 // const minify = require('../src/minify');
 const clean = require('../src/clean');
+const checkTypes = require('../src/check-types');
 
 program
   .option('-b, --build', 'build application')
@@ -13,6 +14,7 @@ program
   .option('-p, --watch-process <name>', 'restart a node process on each build')
   .option('-i, --inspect', 'enable inspect when watching a process')
   .option('-c, --clean', 'clean project')
+  .option('-t, --check-types', 'check the types using TypeScript')
 ;
 
 program.parse(process.argv);
@@ -34,4 +36,6 @@ if (program.clean) {
   clean();
 }
 
-
+if (program.checkTypes) {
+  checkTypes();
+}
