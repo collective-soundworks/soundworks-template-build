@@ -14,11 +14,11 @@ program
   .option('-p, --watch-process <name>', 'restart a node process on each build')
   .option('-i, --inspect', 'enable inspect when watching a process')
   .option('-c, --clean', 'clean project')
-  .option('-t, --check-types', 'check the types using TypeScript')
+  .option('-t, --check-types', 'check the types using TypeScript (use by passing the tsconfig file)')
 ;
 
 program.parse(process.argv);
-console.log(process.argv);
+//console.log(process.argv);
 
 if (program.build) {
   buildApplication(program.watch, program.minify);
@@ -37,5 +37,5 @@ if (program.clean) {
 }
 
 if (program.checkTypes) {
-  checkTypes();
+  checkTypes(process.argv);
 }
