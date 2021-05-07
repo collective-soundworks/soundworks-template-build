@@ -26,11 +26,11 @@ function bundleNode(inputFolder, outputFolder, watch) {
 
     return new Promise((resolve, reject) => {
       const inputFilename = pathname;
-      // TODO: Check if .tsx support is also needed
-      const outputFilename = inputFilename.replace(inputFolder, outputFolder).replace('.ts', '.js');
+      // TODO: Check if .tsx support is working as expected
+      const outputFilename = inputFilename.replace(inputFolder, outputFolder).replace('.tsx', '.jsx').replace('.ts', '.js');
       fs.ensureFileSync(outputFilename);
 
-      if (/(\.js|\.mjs|\.ts)$/.test(inputFilename)) {
+      if (/(\.js|\.mjs|\.ts|\.tsx)$/.test(inputFilename)) {
         babel.transformFile(inputFilename, {
           inputSourceMap: true,
           sourceMap: "inline",
@@ -236,8 +236,17 @@ module.exports = async function buildApplication(watch = false, minify = false) 
       } else {
         console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
 
-        // TODO: Check if we can make this generic to also support the .js version
-        const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.ts');
+        // Note: We first try to read the index.js file, if it doesn't exist we try the .ts version
+        var inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+        try {
+          if (!fs.existsSync(inputFile)) {
+            //console.log(chalk.gray("Note: index.js does not exist, trying .ts file..."))
+            inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.ts');
+          }
+        } catch(err) {
+          console.error(err)
+        }
+
         const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
         await bundleBrowser(inputFile, outputFile, watch);
 
