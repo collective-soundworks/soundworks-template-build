@@ -103,7 +103,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
 
   }
 
-  // TODO: Check if .tsc support is also needed
+  // TODO: Check if .tsx support is also needed
   const compiler = webpack({
     mode: mode,
     devtool: devTools,
@@ -113,7 +113,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
       filename: path.basename(outputFile),
     },
     resolve: {
-      extensions: [".ts", ".js", ".json", ".jsx"],
+      extensions: [".ts", ".tsx", ".js", ".json", ".jsx"],
     },
     // resolveLoader: {
     //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
@@ -121,7 +121,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
     module: {
       rules: [
         {
-          test: /\.(js|mjs|ts|tsc)$/,
+          test: /\.(js|mjs|ts|tsx)$/,
           // 'exclude': /node_modules/,
           use: {
             loader: require.resolve('babel-loader'),
@@ -236,7 +236,8 @@ module.exports = async function buildApplication(watch = false, minify = false) 
       } else {
         console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
 
-        const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+        // TODO: Check if we can make this generic to also support the .js version
+        const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.ts');
         const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
         await bundleBrowser(inputFile, outputFile, watch);
 
