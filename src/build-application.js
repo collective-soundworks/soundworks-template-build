@@ -26,18 +26,20 @@ function bundleNode(inputFolder, outputFolder, watch) {
 
     return new Promise((resolve, reject) => {
       const inputFilename = pathname;
-      const outputFilename = inputFilename.replace(inputFolder, outputFolder);
+      // TODO: Check if .tsx support is also needed
+      const outputFilename = inputFilename.replace(inputFolder, outputFolder).replace('.ts', '.js');
       fs.ensureFileSync(outputFilename);
 
-      if (/(\.js|\.mjs)$/.test(inputFilename)) {
+      if (/(\.js|\.mjs|\.ts)$/.test(inputFilename)) {
         babel.transformFile(inputFilename, {
           inputSourceMap: true,
           sourceMap: "inline",
           plugins: [
             // clean resolve even if using `npm link`:
             // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
+            [require.resolve("@babel/plugin-transform-typescript")],
             [require.resolve('@babel/plugin-transform-modules-commonjs')],
-            [require.resolve('@babel/plugin-proposal-class-properties')],
+            [require.resolve('@babel/plugin-proposal-class-properties')]
           ]
         }, function (err, result) {
           if (err) {
@@ -47,7 +49,7 @@ function bundleNode(inputFolder, outputFolder, watch) {
 
           resolve();
           fs.writeFileSync(outputFilename, result.code);
-          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+          console.log(chalk.green(`> transpiled\t ${inputFilename}` + ( (inputFilename.includes(".ts"))?` to ${outputFilename}`:'')));
         });
       } else {
         fs.copyFileSync(inputFilename, outputFilename);
@@ -82,10 +84,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
   let devTools = 'eval-cheap-module-source-map';
 
   const babelPresets = [
-    [require.resolve('@babel/preset-typescript'),
-    {
-      targets: browserList,
-    }],
+    [require.resolve('@babel/preset-typescript')],
     [require.resolve('@babel/preset-env'),
       {
         targets: browserList,
@@ -104,6 +103,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
 
   }
 
+  // TODO: Check if .tsc support is also needed
   const compiler = webpack({
     mode: mode,
     devtool: devTools,
@@ -113,7 +113,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
       filename: path.basename(outputFile),
     },
     resolve: {
-      extensions: [".js", ".json", ".jsx", ".ts"],
+      extensions: [".ts", ".js", ".json", ".jsx"],
     },
     // resolveLoader: {
     //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
@@ -121,7 +121,7 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
     module: {
       rules: [
         {
-          test: /\.(js|mjs|ts)$/,
+          test: /\.(js|mjs|ts|tsc)$/,
           // 'exclude': /node_modules/,
           use: {
             loader: require.resolve('babel-loader'),

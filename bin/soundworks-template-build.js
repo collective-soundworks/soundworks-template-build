@@ -18,7 +18,7 @@ program
 ;
 
 program.parse(process.argv);
-// console.log(process.argv);
+console.log(process.argv);
 
 if (program.build) {
   buildApplication(program.watch, program.minify);
