@@ -6,6 +6,7 @@ const terminate = require('terminate');
 const { fork } = require('child_process');
 const chalk = require('chalk')
 const debounce = require('lodash.debounce');
+const JSON5 = require('json5');
 
 const processes = new Map();
 
@@ -62,7 +63,41 @@ const stop = async function(src) {
 }
 
 module.exports = function watchProcess(processName, inspect) {
-  const processPath = path.join('.build', processName);
+  let processPath = null;
+
+  if (processName === 'server') {
+    processPath = path.join('.build', processName);
+  } else {
+    // check folder exists
+    // check client is declared as a "node" type in `config/application.json`
+    if (!fs.existsSync(path.join('.build', 'clients', processName))) {
+      console.log(chalk.red(`[@soundworks/template-build]
+> Can't watch process \`${processName}\`, path \`.build/clients/${processName}\` does not exists`));
+      process.exit(0);
+    }
+
+    let clientsConfig = null;
+
+    // move that to external file and watch it
+    try {
+      const configData = fs.readFileSync(path.join('config', 'application.json'));
+      const config = JSON5.parse(configData);
+      clientsConfig = config.clients
+    } catch(err) {
+      console.log(chalk.red(`[@soundworks/template-build]
+> Invalid \`config/application.json\` file`));
+      console.log(err);
+      process.exit(0);
+    }
+    // check client is declared as a "node" type in `config/application.json`
+    if (!clientsConfig[processName] || clientsConfig[processName].target !== 'node') {
+      console.log(chalk.red(`[@soundworks/template-build]
+> Process \`${processName}\` not declared as \`{ "target": "node" }\` in \`config/application.json\``));
+      process.exit(0);
+    }
+
+    processPath = path.join('.build', 'clients', processName);
+  }
 
   const watcher = chokidar.watch(processPath, {
     ignoreInitial: true,

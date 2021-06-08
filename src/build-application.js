@@ -17,8 +17,7 @@ const browserList = 'ios >= 9, not ie 11, not op_mini all';
  * All babel plugins we use are contained in the preset-env, so no need to
  * have them in dependencies.
  */
-
-function bundleNode(inputFolder, outputFolder, watch) {
+function transpile(inputFolder, outputFolder, watch) {
   function compileOrCopy(pathname) {
     if (fs.lstatSync(pathname).isDirectory()) {
       return Promise.resolve();
@@ -77,7 +76,7 @@ function bundleNode(inputFolder, outputFolder, watch) {
   }
 }
 
-function bundleBrowser(inputFile, outputFile, watch, minify) {
+function bundle(inputFile, outputFile, watch, minify) {
   let mode = 'development';
   let devTools = 'eval-cheap-module-source-map';
 
@@ -94,10 +93,9 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
     mode = 'production';
     devTools = false;
 
-    babelPresets.push(['minify', {
-      builtIns: false,
-    }]);
-
+    // babelPresets.push([require.resolve('minify'), {
+    //   builtIns: false,
+    // }]);
   }
 
   const compiler = webpack({
@@ -162,85 +160,78 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
 }
 
 
-module.exports = async function buildApplication(watch = false, minify = false) {
-  console.log('build application', watch, minify);
-  const cmdString = watch ? 'watching' : 'building';
-  console.log(cmdString);
-  // -----------------------------------------
-  // server files
-  // -----------------------------------------
-  {
-    console.log(chalk.yellow(`+ ${cmdString} server`));
-    const configSrc = path.join('src', 'server');
-    const configDist = path.join('.build', 'server');
-    await bundleNode(configSrc, configDist, watch);
+module.exports = async function buildApplication(watch = false, minifyBrowserClients = false) {
+  /**
+   * BUILD STRATEGY
+   * -------------------------------------------------------------
+   *
+   * cf. https://github.com/collective-soundworks/soundworks/issues/23
+   *
+   * 1. transpile * from `src` into `build` using `babel` keeping file system
+   *    and structure intact
+   * 2. find browser clients in `src/clients` from `config/application`
+   *    and build them into .build/public` using` webpack
+   *
+   * @note:
+   * - exit with error message if `src/public` exists (reserved path)
+   *
+   * -------------------------------------------------------------
+   */
+
+  if (fs.existsSync(path.join('src', 'public'))) {
+    console.log(chalk.red(`[@soundworks/template-build]
+> The path "src/public" is reserved by the application build process.
+> Please rename this file or directory, and relaunch the build process`));
+    process.exit(0);
   }
 
-  // -----------------------------------------
-  // clients files
-  // -----------------------------------------
+  // transpiling `src` to `.build`
   {
-    // utility function
-    function getClientTarget(name) {
-      try {
-        const data = fs.readFileSync(path.join(cwd, 'config', 'application.json'));
-        const config = JSON5.parse(data);
-        const clientsConfig = config.clients
+    const cmdString = watch ? 'watching' : 'transpiling';
+    console.log(chalk.yellow(`+ ${cmdString} \`src\` to \`.build\``));
 
-        if (clientsConfig[name] && clientsConfig[name].target) {
-          return clientsConfig[name].target;
-        } else {
-          return null;
-        };
-      } catch(err) {
-        console.log(chalk.red('> Invalid `config/application.json` file'));
-        process.exit(0);
-      }
+    await transpile('src', '.build', watch);
+  }
+
+  // building "browser" clients from `src` to `.build/public`
+  {
+    const cmdString = watch ? 'watching' : 'building';
+    let clientsConfig = null;
+    // parse config/application
+    try {
+      const configData = fs.readFileSync(path.join(cwd, 'config', 'application.json'));
+      const config = JSON5.parse(configData);
+      clientsConfig = config.clients
+    } catch(err) {
+      console.log(chalk.red(`[@soundworks/template-build]
+> Invalid \`config/application.json\` file`));
+      process.exit(0);
     }
 
-    // real process
+    // find "browsers" clients paths
     const clientsSrc = path.join('src', 'clients');
     const filenames = fs.readdirSync(clientsSrc);
-    const clients = filenames.filter(filename => {
-      const relPath = path.join(clientsSrc, filename);
-      const isDir = fs.lstatSync(relPath).isDirectory();
-      return isDir;
-    }).sort((a, b) => {
-      // we want to build the browsers files last
-      const aTarget = getClientTarget(a);
-      return (aTarget === 'browser') ? 1 : -1;
-    });
+    const clients = filenames
+      .filter(filename => {
+        const relPath = path.join(clientsSrc, filename);
+        const isDir = fs.lstatSync(relPath).isDirectory();
+        return isDir;
+      }).filter(dirname => {
+        return clientsConfig[dirname] && clientsConfig[dirname].target === 'browser';
+      });
 
-    console.log(clients);
-
+    // the for loop is needed to keep things synced
     for (let clientName of clients) {
-      const target = getClientTarget(clientName);
+      console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
 
-      // IoT clients or any shared/utils file
-      if (target !== 'browser') {
-        if (target === 'node') {
-          console.log(chalk.yellow(`+ ${cmdString} node client "${clientName}"`));
-        } else {
-          console.log(chalk.yellow(`+ ${cmdString} folder "${clientName}"`));
-        }
+      const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+      const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
+      await bundle(inputFile, outputFile, watch);
 
-        const inputFolder = path.join('src', 'clients', clientName);
-        const outputFolder = path.join('.build', clientName);
-        await bundleNode(inputFolder, outputFolder, watch);
-
-      // regular browser clients
-      } else {
-        console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
-
-        const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
-        const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
-        await bundleBrowser(inputFile, outputFile, watch);
-
-        if (minify) {
-          console.log(chalk.yellow(`+ minifying browser client "${clientName}"`));
-          const minOutputFile = path.join(cwd, '.build', 'public', `${clientName}.min.js`);
-          await bundleBrowser(inputFile, minOutputFile, false, true);
-        }
+      if (minifyBrowserClients) {
+        console.log(chalk.yellow(`+ minifying browser client "${clientName}"`));
+        const minOutputFile = path.join(cwd, '.build', 'public', `${clientName}.min.js`);
+        await bundle(inputFile, minOutputFile, watch, true);
       }
     }
   }
