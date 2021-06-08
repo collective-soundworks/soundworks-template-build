@@ -163,7 +163,9 @@ function bundleBrowser(inputFile, outputFile, watch, minify) {
 
 
 module.exports = async function buildApplication(watch = false, minify = false) {
+  console.log('build application', watch, minify);
   const cmdString = watch ? 'watching' : 'building';
+  console.log(cmdString);
   // -----------------------------------------
   // server files
   // -----------------------------------------
@@ -208,6 +210,8 @@ module.exports = async function buildApplication(watch = false, minify = false) 
       const aTarget = getClientTarget(a);
       return (aTarget === 'browser') ? 1 : -1;
     });
+
+    console.log(clients);
 
     for (let clientName of clients) {
       const target = getClientTarget(clientName);

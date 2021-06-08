@@ -16,21 +16,21 @@ program
 ;
 
 program.parse(process.argv);
-// console.log(process.argv);
+const options = program.opts();
 
-if (program.build) {
-  buildApplication(program.watch, program.minify);
+if (options.build) {
+  buildApplication(options.watch, options.minify);
 }
 
-if (program.watchProcess) {
-  watchProcess(program.watchProcess, program.inspect);
+if (options.watchProcess) {
+  watchProcess(options.watchProcess, options.inspect);
 }
 
-if (program.watchProcessInspect) {
-  watchProcess(program.watchProcessInspect, true);
+if (options.watchProcessInspect) {
+  watchProcess(options.watchProcessInspect, true);
 }
 
-if (program.clean) {
+if (options.clean) {
   clean();
 }
 
