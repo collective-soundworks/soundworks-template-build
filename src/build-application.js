@@ -36,9 +36,10 @@ function transpile(inputFolder, outputFolder, watch) {
           plugins: [
             // clean resolve even if using `npm link`:
             // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
-            [require.resolve("@babel/plugin-transform-typescript")],
+            [require.resolve('@babel/plugin-transform-typescript')],
             [require.resolve('@babel/plugin-transform-modules-commonjs')],
-            [require.resolve('@babel/plugin-proposal-class-properties')]
+            [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
+            [require.resolve('@babel/plugin-proposal-class-properties')],
           ]
         }, function (err, result) {
           if (err) {
@@ -128,6 +129,7 @@ function bundle(inputFile, outputFile, watch, minify) {
               plugins: [
                 // ['@babel/plugin-transform-modules-commonjs'],
                 [require.resolve('@babel/plugin-transform-arrow-functions')],
+                [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
                 [require.resolve('@babel/plugin-proposal-class-properties')],
                 [require.resolve('@babel/plugin-proposal-object-rest-spread')]
               ],
