@@ -1,4 +1,4 @@
-# `@soundworks/template-build`
+# `@soundworks/template-build` with TypeScript support
 
 > `soundworks-template` build scripts for [soundworks#v3](https://github.com/collective-soundworks/soundworks)
 >
@@ -6,6 +6,7 @@
 > - `babel` to transpile source files
 > - `webpack` to bundle browser clients
 > - `chokidar` for file watching
+> - `typescript/tsc` for type checking
 
 ## Install
 
@@ -19,6 +20,7 @@ soundworks-template-build
 soundworks-template-build --build [--watch]
 soundworks-template-build --minify
 soundworks-template-build --watch-process <processName>
+soundworks-template-build --check-types <tsconfig file>
 ```
 
 ## Notes

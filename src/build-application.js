@@ -25,17 +25,20 @@ function transpile(inputFolder, outputFolder, watch) {
 
     return new Promise((resolve, reject) => {
       const inputFilename = pathname;
-      const outputFilename = inputFilename.replace(inputFolder, outputFolder);
+      // TODO: Check if .tsx support is working as expected
+      const outputFilename = inputFilename.replace(inputFolder, outputFolder).replace('.tsx', '.jsx').replace('.ts', '.js');
       fs.ensureFileSync(outputFilename);
 
-      if (/(\.js|\.mjs)$/.test(inputFilename)) {
+      if (/(\.js|\.mjs|\.ts|\.tsx)$/.test(inputFilename)) {
         babel.transformFile(inputFilename, {
           inputSourceMap: true,
           sourceMap: "inline",
           plugins: [
             // clean resolve even if using `npm link`:
             // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
+            [require.resolve('@babel/plugin-transform-typescript')],
             [require.resolve('@babel/plugin-transform-modules-commonjs')],
+            [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
             [require.resolve('@babel/plugin-proposal-class-properties')],
           ]
         }, function (err, result) {
@@ -46,7 +49,7 @@ function transpile(inputFolder, outputFolder, watch) {
 
           resolve();
           fs.writeFileSync(outputFilename, result.code);
-          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+          console.log(chalk.green(`> transpiled\t ${inputFilename}` + ( (inputFilename.includes(".ts"))?` to ${outputFilename}`:'')));
         });
       } else {
         fs.copyFileSync(inputFilename, outputFilename);
@@ -81,6 +84,7 @@ function bundle(inputFile, outputFile, watch, minify) {
   let devTools = 'eval-cheap-module-source-map';
 
   const babelPresets = [
+    [require.resolve('@babel/preset-typescript')],
     [require.resolve('@babel/preset-env'),
       {
         targets: browserList,
@@ -98,6 +102,7 @@ function bundle(inputFile, outputFile, watch, minify) {
     // }]);
   }
 
+  // TODO: Check if .tsx support is also needed
   const compiler = webpack({
     mode: mode,
     devtool: devTools,
@@ -106,13 +111,16 @@ function bundle(inputFile, outputFile, watch, minify) {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
     },
+    resolve: {
+      extensions: [".ts", ".tsx", ".js", ".json", ".jsx"],
+    },
     // resolveLoader: {
     //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
     // },
     module: {
       rules: [
         {
-          test: /\.(js|mjs)$/,
+          test: /\.(js|mjs|ts|tsx)$/,
           // 'exclude': /node_modules/,
           use: {
             loader: require.resolve('babel-loader'),
@@ -121,7 +129,9 @@ function bundle(inputFile, outputFile, watch, minify) {
               plugins: [
                 // ['@babel/plugin-transform-modules-commonjs'],
                 [require.resolve('@babel/plugin-transform-arrow-functions')],
+                [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
                 [require.resolve('@babel/plugin-proposal-class-properties')],
+                [require.resolve('@babel/plugin-proposal-object-rest-spread')]
               ],
             }
           }
@@ -137,7 +147,7 @@ function bundle(inputFile, outputFile, watch, minify) {
           console.log(stats.compilation.errors);
         }
 
-        console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        console.log(chalk.greenBright(`> bundled\t ${outputFile.replace(cwd, '')}`));
         resolve();
       });
     });
@@ -224,7 +234,17 @@ module.exports = async function buildApplication(watch = false, minifyBrowserCli
     for (let clientName of clients) {
       console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
 
-      const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+      // Note: We first try to read the index.js file, if it doesn't exist we try the .ts version
+      var inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+      try {
+        if (!fs.existsSync(inputFile)) {
+          //console.log(chalk.gray("Note: index.js does not exist, trying .ts file..."))
+          inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.ts');
+        }
+      } catch(err) {
+        console.error(err)
+      }
+
       const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
       await bundle(inputFile, outputFile, watch);
 
