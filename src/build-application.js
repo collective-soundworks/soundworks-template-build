@@ -113,6 +113,7 @@ function bundle(inputFile, outputFile, watch, minify) {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".js", ".json", ".jsx"],
+      fallback: { "dgram": false }
     },
     // resolveLoader: {
     //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
