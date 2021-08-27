@@ -40,6 +40,7 @@ function transpile(inputFolder, outputFolder, watch) {
             [require.resolve('@babel/plugin-transform-modules-commonjs')],
             [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
             [require.resolve('@babel/plugin-proposal-class-properties')],
+            // [require.resolve('babel-plugin-transform-remove-console'), { 'exclude': ['error', 'warn'] }],
           ]
         }, function (err, result) {
           if (err) {
@@ -132,7 +133,8 @@ function bundle(inputFile, outputFile, watch, minify) {
                 [require.resolve('@babel/plugin-transform-arrow-functions')],
                 [require.resolve('@babel/plugin-proposal-decorators'), { 'legacy': true }],
                 [require.resolve('@babel/plugin-proposal-class-properties')],
-                [require.resolve('@babel/plugin-proposal-object-rest-spread')]
+                [require.resolve('@babel/plugin-proposal-object-rest-spread')],
+                // [require.resolve('babel-plugin-transform-remove-console'), { 'exclude': ['error', 'warn'] }],
               ],
             }
           }
