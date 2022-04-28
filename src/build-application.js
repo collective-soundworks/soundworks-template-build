@@ -94,12 +94,12 @@ function bundle(inputFile, outputFile, watch, minify) {
     devTools = false;
   }
 
-  console.log('target es5');
-
   const compiler = webpack({
     mode: mode,
     devtool: devTools,
     entry: inputFile,
+    // 'es5' flag is important to support iOS 9.3
+    // see https://stackoverflow.com/questions/54039337/how-to-remove-arrow-functions-from-webpack-output
     target: ['web', 'es5'],
     output: {
       path: path.dirname(outputFile),
