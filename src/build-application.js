@@ -92,16 +92,15 @@ function bundle(inputFile, outputFile, watch, minify) {
   if (minify) {
     mode = 'production';
     devTools = false;
-
-    // babelPresets.push([require.resolve('minify'), {
-    //   builtIns: false,
-    // }]);
   }
+
+  console.log('target es5');
 
   const compiler = webpack({
     mode: mode,
     devtool: devTools,
     entry: inputFile,
+    target: ['web', 'es5'],
     output: {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
