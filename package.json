@@ -5,7 +5,7 @@
   ],
   "description": "soundworks-template build scripts",
   "license": "BSD-3-Clause",
-  "version": "3.1.2",
+  "version": "4.0.0",
   "type": "module",
   "bin": {
     "soundworks-template-build": "./bin/soundworks-template-build.js"
