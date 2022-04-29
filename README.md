@@ -1,16 +1,16 @@
 # `@soundworks/template-build`
 
 > `soundworks-template` build scripts for [soundworks#v3](https://github.com/collective-soundworks/soundworks)
->
-> uses:
-> - `babel` to transpile source files
-> - `webpack` to bundle browser clients
-> - `chokidar` for file watching
+
+General approach:
+- `webpack` and `babel` to bundle browser clients
+- `chokidar` for file watching
+- from v4 - Node processes (server, node clients) should run with "type: module"
 
 ## Install
 
 ```
-soundworks-template-build
+npm install --save soundworks-template-build
 ```
 
 ## Usage
@@ -29,8 +29,7 @@ Should support iOS >= 9
 
 ## Todos
 
-- build tow clients using a module / nomodule strategy
-(cf [https://philipwalton.com/articles/using-native-javascript-modules-in-production-today/](https://philipwalton.com/articles/using-native-javascript-modules-in-production-today/))
+- `typescript` support (see https://github.com/collective-soundworks/soundworks-template-build/pull/1)
 - `vue.js` and `react` support
 
 ## License

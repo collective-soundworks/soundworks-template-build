@@ -7,6 +7,9 @@
   "license": "BSD-3-Clause",
   "version": "3.1.2",
   "type": "module",
+  "bin": {
+    "soundworks-template-build": "./bin/soundworks-template-build.js"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -14,14 +17,11 @@
     "type": "git",
     "url": "https://github.com/collective-soundworks/soundworks-template-build"
   },
-  "scripts": {
-    "deploy": "np --yolo"
-  },
   "dependencies": {
     "@babel/core": "^7.17.9",
     "@babel/preset-env": "^7.16.11",
     "babel-loader": "^8.2.5",
-    "chalk": "^4.1.0",
+    "chalk": "^5.0.1",
     "chokidar": "^3.5.3",
     "commander": "^9.2.0",
     "fs-extra": "^10.1.0",
@@ -31,8 +31,5 @@
     "rimraf": "^3.0.2",
     "terminate": "^2.5.0",
     "webpack": "^5.72.0"
-  },
-  "bin": {
-    "soundworks-template-build": "./bin/soundworks-template-build.js"
   }
 }
