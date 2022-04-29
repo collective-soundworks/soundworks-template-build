@@ -28,31 +28,31 @@ function transpile(inputFolder, outputFolder, watch) {
       const outputFilename = inputFilename.replace(inputFolder, outputFolder);
       fs.ensureFileSync(outputFilename);
 
-      if (/(\.js|\.mjs)$/.test(inputFilename)) {
-        babel.transformFile(inputFilename, {
-          inputSourceMap: true,
-          sourceMap: "inline",
-          plugins: [
-            // clean resolve even if using `npm link`:
-            // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
-            [require.resolve('@babel/plugin-transform-modules-commonjs')],
-            [require.resolve('@babel/plugin-proposal-class-properties')],
-          ]
-        }, function (err, result) {
-          if (err) {
-            return console.log(err.message);
-            reject();
-          }
+      // if (/(\.js|\.mjs)$/.test(inputFilename)) {
+      //   babel.transformFile(inputFilename, {
+      //     inputSourceMap: true,
+      //     sourceMap: "inline",
+      //     plugins: [
+      //       // clean resolve even if using `npm link`:
+      //       // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
+      //       [require.resolve('@babel/plugin-transform-modules-commonjs')],
+      //       [require.resolve('@babel/plugin-proposal-class-properties')],
+      //     ]
+      //   }, function (err, result) {
+      //     if (err) {
+      //       return console.log(err.message);
+      //       reject();
+      //     }
 
-          resolve();
-          fs.writeFileSync(outputFilename, result.code);
-          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
-        });
-      } else {
+      //     resolve();
+      //     fs.writeFileSync(outputFilename, result.code);
+      //     console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+      //   });
+      // } else {
         fs.copyFileSync(inputFilename, outputFilename);
         console.log(chalk.green(`> copied\t ${inputFilename}`));
         resolve();
-      }
+      // }
     });
   }
 
