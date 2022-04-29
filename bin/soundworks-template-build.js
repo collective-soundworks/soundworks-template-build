@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-const program = require('commander');
-const buildApplication = require('../src/build-application');
-const watchProcess = require('../src/watch-process');
-// const minify = require('../src/minify');
-const clean = require('../src/clean');
+import { program } from 'commander';
+import buildApplication from '../src/build-application.js';
+import watchProcess from '../src/watch-process.js';
+import clean from '../src/clean.js';
 
 program
   .option('-b, --build', 'build application')

@@ -1,14 +1,18 @@
-#!/usr/bin/env node
-const path = require('path');
-const babel = require('@babel/core');
-const chalk = require('chalk')
-const chokidar = require('chokidar');
-const fs = require('fs-extra');
-const webpack = require('webpack');
-const JSON5 = require('json5');
-const klawSync = require('klaw-sync');
+import path from 'path';
+import babel from '@babel/core';
+import chalk from 'chalk';
+import chokidar from 'chokidar';
+import fs from 'fs-extra';
+import webpack from 'webpack';
+import JSON5 from 'json5';
+import klawSync from 'klaw-sync';
+import { createRequire } from 'module';
 
 const cwd = process.cwd();
+
+// for clean resolve even if using `npm link`:
+// https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
+const require = createRequire(import.meta.url);
 
 // we need support for iOS 9.3.5
 const browserList = 'ios >= 9, not ie 11, not op_mini all';
@@ -33,8 +37,6 @@ function transpile(inputFolder, outputFolder, watch) {
       //     inputSourceMap: true,
       //     sourceMap: "inline",
       //     plugins: [
-      //       // clean resolve even if using `npm link`:
-      //       // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
       //       [require.resolve('@babel/plugin-transform-modules-commonjs')],
       //       [require.resolve('@babel/plugin-proposal-class-properties')],
       //     ]
@@ -48,11 +50,10 @@ function transpile(inputFolder, outputFolder, watch) {
       //     fs.writeFileSync(outputFilename, result.code);
       //     console.log(chalk.green(`> transpiled\t ${inputFilename}`));
       //   });
-      // } else {
-        fs.copyFileSync(inputFilename, outputFilename);
-        console.log(chalk.green(`> copied\t ${inputFilename}`));
-        resolve();
-      // }
+
+      fs.copyFileSync(inputFilename, outputFilename);
+      console.log(chalk.green(`> copied\t ${inputFilename}`));
+      resolve();
     });
   }
 
@@ -105,20 +106,15 @@ function bundle(inputFile, outputFile, watch, minify) {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
     },
-    // resolveLoader: {
-    //   modules: ['node_modules', path.join(__dirname, '..', 'node_modules')]
-    // },
     module: {
       rules: [
         {
           test: /\.(js|mjs)$/,
-          // 'exclude': /node_modules/,
           use: {
             loader: require.resolve('babel-loader'),
             options: {
               presets: babelPresets,
               plugins: [
-                // ['@babel/plugin-transform-modules-commonjs'],
                 [require.resolve('@babel/plugin-transform-arrow-functions')],
                 [require.resolve('@babel/plugin-proposal-class-properties')],
               ],
@@ -159,15 +155,15 @@ function bundle(inputFile, outputFile, watch, minify) {
 }
 
 
-module.exports = async function buildApplication(watch = false, minifyBrowserClients = false) {
+export default async function buildApplication(watch = false, minifyBrowserClients = false) {
   /**
    * BUILD STRATEGY
    * -------------------------------------------------------------
    *
    * cf. https://github.com/collective-soundworks/soundworks/issues/23
    *
-   * 1. transpile * from `src` into `build` using `babel` keeping file system
-   *    and structure intact
+   * 1. copy * from `src` into `.build` keeping file system and structure
+   *    intact, we keep the copy to allow further support (typescript, etc.)
    * 2. find browser clients in `src/clients` from `config/application`
    *    and build them into .build/public` using` webpack
    *

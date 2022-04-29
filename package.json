@@ -6,6 +6,7 @@
   "description": "soundworks-template build scripts",
   "license": "BSD-3-Clause",
   "version": "3.1.2",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },

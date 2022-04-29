@@ -1,12 +1,11 @@
-#!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
-const chokidar = require('chokidar');
-const terminate = require('terminate');
-const { fork } = require('child_process');
-const chalk = require('chalk')
-const debounce = require('lodash.debounce');
-const JSON5 = require('json5');
+import fs from 'fs';
+import path from 'path';
+import chokidar from 'chokidar';
+import terminate from 'terminate';
+import { fork } from 'child_process';
+import chalk from 'chalk';
+import debounce from 'lodash.debounce';
+import JSON5 from 'json5';
 
 const processes = new Map();
 
@@ -62,7 +61,7 @@ const stop = async function(src) {
   });
 }
 
-module.exports = function watchProcess(processName, inspect) {
+export default function watchProcess(processName, inspect) {
   let processPath = null;
 
   if (processName === 'server') {
@@ -99,16 +98,14 @@ module.exports = function watchProcess(processName, inspect) {
     processPath = path.join('.build', 'clients', processName);
   }
 
-  const watcher = chokidar.watch(processPath, {
+  const watcher = chokidar.watch([processPath, path.join('config')], {
     ignoreInitial: true,
   });
 
   console.log(chalk.cyan(`> watching process\t ${processPath}`));
   // restart to principal target (processPath)
   watcher
-    // .on('add', debounce(filename => start(processPath, inspect), 300)) // probably not really needed
     .on('change', debounce(filename => start(processPath, inspect), 500))
-    // .on('unlink', filename => start(processPath));
 
   // as we ignore initial changes we can start the process now
   start(processPath, inspect);

@@ -1,6 +1,6 @@
-const chalk = require('chalk');
-const rimraf = require('rimraf');
+import chalk from 'chalk';
+import rimraf from 'rimraf';
 
-module.exports = function clean() {
+export default function clean() {
   rimraf('.build', () => console.log(chalk.yellow(`+ deleted build folder`)));
 }
