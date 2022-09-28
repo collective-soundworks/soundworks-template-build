@@ -32,27 +32,28 @@ function transpile(inputFolder, outputFolder, watch) {
       const outputFilename = inputFilename.replace(inputFolder, outputFolder);
       fs.ensureFileSync(outputFilename);
 
-      // if (/(\.js|\.mjs)$/.test(inputFilename)) {
-      //   babel.transformFile(inputFilename, {
-      //     inputSourceMap: true,
-      //     sourceMap: "inline",
-      //     plugins: [
-      //       [require.resolve('@babel/plugin-transform-modules-commonjs')],
-      //       [require.resolve('@babel/plugin-proposal-class-properties')],
-      //     ]
-      //   }, function (err, result) {
-      //     if (err) {
-      //       return console.log(err.message);
-      //       reject();
-      //     }
+      if (/(\.js|\.mjs)$/.test(inputFilename)) {
+        babel.transformFile(inputFilename, {
+          inputSourceMap: true,
+          sourceMap: "inline",
+          plugins: [
+            [require.resolve('@babel/plugin-transform-modules-commonjs')],
+            [require.resolve('@babel/plugin-proposal-class-properties')],
+          ]
+        }, function (err, result) {
+          if (err) {
+            return console.log(err.message);
+            reject();
+          }
 
-      //     resolve();
-      //     fs.writeFileSync(outputFilename, result.code);
-      //     console.log(chalk.green(`> transpiled\t ${inputFilename}`));
-      //   });
+          resolve();
+          fs.writeFileSync(outputFilename, result.code);
+          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+        });
+      }
 
-      fs.copyFileSync(inputFilename, outputFilename);
-      console.log(chalk.green(`> copied\t ${inputFilename}`));
+      // fs.copyFileSync(inputFilename, outputFilename);
+      // console.log(chalk.green(`> copied\t ${inputFilename}`));
       resolve();
     });
   }
@@ -129,7 +130,7 @@ function bundle(inputFile, outputFile, watch, minify) {
     return new Promise((resolve, reject) => {
       compiler.run((err, stats) => {
         if (err || stats.hasErrors()) {
-          console.log(stats.compilation.errors);
+          console.error(stats.compilation.errors);
         }
 
         console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
@@ -144,7 +145,7 @@ function bundle(inputFile, outputFile, watch, minify) {
         poll: undefined
       }, (err, stats) => { // Stats Object
         if (err || stats.hasErrors()) {
-          console.log(stats.compilation.errors);
+          console.error(stats.compilation.errors);
         }
 
         console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
