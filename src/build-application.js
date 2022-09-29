@@ -42,19 +42,19 @@ function transpile(inputFolder, outputFolder, watch) {
           ]
         }, function (err, result) {
           if (err) {
-            return console.log(err.message);
+            return console.error(err.message);
             reject();
           }
 
-          resolve();
           fs.writeFileSync(outputFilename, result.code);
           console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+          resolve();
         });
+      } else {
+        fs.copyFileSync(inputFilename, outputFilename);
+        console.log(chalk.green(`> copied\t ${inputFilename}`));
+        resolve();
       }
-
-      // fs.copyFileSync(inputFilename, outputFilename);
-      // console.log(chalk.green(`> copied\t ${inputFilename}`));
-      resolve();
     });
   }
 
@@ -175,9 +175,9 @@ export default async function buildApplication(watch = false, minifyBrowserClien
    */
 
   if (fs.existsSync(path.join('src', 'public'))) {
-    console.log(chalk.red(`[@soundworks/template-build]
+    console.error(chalk.red(`[@soundworks/template-build]
 > The path "src/public" is reserved by the application build process.
-> Please rename this file or directory, and relaunch the build process`));
+> Please rename this file or directory, and restart the build process`));
     process.exit(0);
   }
 
@@ -199,7 +199,7 @@ export default async function buildApplication(watch = false, minifyBrowserClien
       const config = JSON5.parse(configData);
       clientsConfig = config.clients
     } catch(err) {
-      console.log(chalk.red(`[@soundworks/template-build]
+      console.error(chalk.red(`[@soundworks/template-build]
 > Invalid \`config/application.json\` file`));
       process.exit(0);
     }
