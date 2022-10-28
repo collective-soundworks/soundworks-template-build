@@ -121,7 +121,11 @@ function bundle(inputFile, outputFile, watch, minify) {
               ],
             }
           }
-        }
+        },
+        {
+          resourceQuery: /inline/,
+          type: 'asset/source',
+        },
       ]
     }
   });
