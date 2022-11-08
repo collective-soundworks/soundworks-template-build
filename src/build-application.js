@@ -1,61 +1,76 @@
-import path from 'path';
+import path from 'node:path';
+import os from 'node:os';
+import { createRequire } from 'node:module';
+
 import babel from '@babel/core';
 import chalk from 'chalk';
 import chokidar from 'chokidar';
 import fs from 'fs-extra';
-import webpack from 'webpack';
 import JSON5 from 'json5';
 import klawSync from 'klaw-sync';
-import { createRequire } from 'module';
+import webpack from 'webpack';
+// import sm from 'source-map';
 
 const cwd = process.cwd();
-
 // for clean resolve even if using `npm link`:
 // https://github.com/facebook/create-react-app/blob/7408e36478ea7aa271c9e16f51444547a063b400/packages/babel-preset-react-app/index.js#L15
 const require = createRequire(import.meta.url);
 
+// @todo - if app config says typescript, use /\.(js|mjs|ts|tsx)$/
+const supportedFilesRegExp = /\.(js|mjs)$/;
+
+// @todo - remove this...
 // we need support for iOS 9.3.5
-const browserList = 'ios >= 9, not ie 11, not op_mini all';
+// const browserList = 'ios >= 9, not ie 11, not op_mini all';
 
 /**
  * All babel plugins we use are contained in the preset-env, so no need to
  * have them in dependencies.
  */
-function transpile(inputFolder, outputFolder, watch) {
-  function compileOrCopy(pathname) {
+async function transpile(inputFolder, outputFolder, watch) {
+  async function compileOrCopy(pathname) {
     if (fs.lstatSync(pathname).isDirectory()) {
       return Promise.resolve();
     }
 
-    return new Promise((resolve, reject) => {
-      const inputFilename = pathname;
-      const outputFilename = inputFilename.replace(inputFolder, outputFolder);
-      fs.ensureFileSync(outputFilename);
+    const inputFilename = pathname;
+    const outputFilename = inputFilename.replace(inputFolder, outputFolder);
 
-      if (/(\.js|\.mjs)$/.test(inputFilename)) {
-        babel.transformFile(inputFilename, {
-          inputSourceMap: true,
-          sourceMap: "inline",
-          plugins: [
-            [require.resolve('@babel/plugin-transform-modules-commonjs')],
-            [require.resolve('@babel/plugin-proposal-class-properties')],
-          ]
-        }, function (err, result) {
-          if (err) {
-            return console.error(err.message);
-            reject();
-          }
+    if (supportedFilesRegExp.test(inputFilename)) {
+      try {
+        const sourceFileName = path.relative(path.dirname(outputFilename), inputFilename);
 
-          fs.writeFileSync(outputFilename, result.code);
-          console.log(chalk.green(`> transpiled\t ${inputFilename}`));
-          resolve();
+        let { code, map } = await babel.transformFileAsync(inputFilename, {
+          sourceMap: true,
+          sourceFileName,
+          presets: [],
+          plugins: [],
         });
-      } else {
+
+        code += `
+//# sourceMappingURL=./${path.basename(outputFilename)}.map`;
+
+        fs.outputFileSync(outputFilename, code);
+        fs.outputJsonSync(`${outputFilename}.map`, map);
+
+        console.log(chalk.green(`> transpiled\t ${inputFilename}`));
+        return Promise.resolve();
+      } catch (err) {
+        console.error(chalk.red('- transpile error:'));
+        console.error(err.message);
+        return Promise.resolve();
+      }
+    } else {
+      try {
+        fs.ensureDirSync(path.dirname(outputFilename));
         fs.copyFileSync(inputFilename, outputFilename);
         console.log(chalk.green(`> copied\t ${inputFilename}`));
-        resolve();
+        return Promise.resolve();
+      } catch(err) {
+        console.error(err.message);
+        return Promise.resolve();
       }
-    });
+    }
   }
 
   if (!watch) {
@@ -78,16 +93,12 @@ function transpile(inputFolder, outputFolder, watch) {
   }
 }
 
-function bundle(inputFile, outputFile, watch, minify) {
+async function bundle(inputFile, outputFile, watch, minify) {
   let mode = 'development';
-  let devTools = 'eval-cheap-module-source-map';
+  let devTools = 'source-map';
 
   const babelPresets = [
-    [require.resolve('@babel/preset-env'),
-      {
-        targets: browserList,
-      }
-    ]
+    [require.resolve('@babel/preset-env')]
   ];
 
   // production
@@ -96,13 +107,17 @@ function bundle(inputFile, outputFile, watch, minify) {
     devTools = false;
   }
 
-  const compiler = webpack({
+  let config = {
     mode: mode,
     devtool: devTools,
     entry: inputFile,
     // 'es5' flag is important to support iOS 9.3
     // see https://stackoverflow.com/questions/54039337/how-to-remove-arrow-functions-from-webpack-output
-    target: ['web', 'es5'],
+    // target: ['web', 'es5'],
+    target: ['web'],
+    cache: {
+      type: 'filesystem',
+    },
     output: {
       path: path.dirname(outputFile),
       filename: path.basename(outputFile),
@@ -110,31 +125,67 @@ function bundle(inputFile, outputFile, watch, minify) {
     module: {
       rules: [
         {
-          test: /\.(js|mjs)$/,
+          test: supportedFilesRegExp,
           use: {
             loader: require.resolve('babel-loader'),
             options: {
+              cacheDirectory: true,
+              // this makes errors more readable in browsers' console. As the file
+              // is in any case also simply transpiled by babel we also have the
+              // error with syntaxx highlighting in the terminal console
+              highlightCode: false,
               presets: babelPresets,
               plugins: [
-                [require.resolve('@babel/plugin-transform-arrow-functions')],
-                [require.resolve('@babel/plugin-proposal-class-properties')],
+                // [require.resolve('@babel/plugin-transform-arrow-functions')],
+                // [require.resolve('@babel/plugin-proposal-class-properties')],
               ],
             }
           }
         },
+        // simple hack to inline WebWorkers
+        // @todo - needs review to have common syntax client side and server side
+        // as well as to handle AudioWorlet...
         {
           resourceQuery: /inline/,
           type: 'asset/source',
         },
-      ]
-    }
-  });
+      ],
+    },
+  };
+
+  // allow extending webpack config sfrom application
+  const webpackExtend = path.join(cwd, 'webpack.config.js');
+
+  if (fs.existsSync(webpackExtend)) {
+    let module = await import(webpackExtend);
+    config = module.default(config);
+  }
+
+  // @todo - if the target application have some webpack.config.js file
+  // it should be taken into account
+  const compiler = webpack(config);
+
+  function filterStackTrace(err) {
+    return err.toString()
+      .split(/[\r\n]+/)
+      .filter(line => ! line.match(/^\s+at/))
+      .join(os.EOL);
+  }
 
   if (!watch) {
     return new Promise((resolve, reject) => {
       compiler.run((err, stats) => {
         if (err || stats.hasErrors()) {
-          console.error(stats.compilation.errors);
+          // no need to log these errors in the console, this is already done by babel
+          if (stats.compilation.errors[0].error.code !== 'BABEL_PARSE_ERROR') {
+            const err = filterStackTrace(stats.compilation.errors[0]);
+            console.error(chalk.red('- build error:'));
+            console.error(err);
+          }
+
+          console.error(chalk.red(`- build failed   ${outputFile.replace(cwd, '')}`));
+          resolve();
+          return;
         }
 
         console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
@@ -142,6 +193,7 @@ function bundle(inputFile, outputFile, watch, minify) {
       });
     });
   } else {
+    let initial = true;
     // we can't ignore initial build, so let's keep everything sequencial
     return new Promise((resolve, reject) => {
       const watching = compiler.watch({
@@ -149,10 +201,25 @@ function bundle(inputFile, outputFile, watch, minify) {
         poll: undefined
       }, (err, stats) => { // Stats Object
         if (err || stats.hasErrors()) {
-          console.error(stats.compilation.errors);
+          // no need to log these errors in the console, this is already done by babel
+          if (stats.compilation.errors[0].error.code !== 'BABEL_PARSE_ERROR') {
+            const err = filterStackTrace(stats.compilation.errors[0]);
+            console.error(chalk.red('- build error:'));
+            console.error(err);
+          }
+
+          console.error(chalk.red(`- build failed   ${outputFile.replace(cwd, '')}`));
+          initial = false; // if next build works we want to log it
+          resolve();
+          return;
         }
 
-        console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        // do not log the first build, this is confusing
+        if (!initial) {
+          console.log(chalk.green(`> bundled\t ${outputFile.replace(cwd, '')}`));
+        }
+
+        initial = false;
         resolve();
       });
     });
@@ -201,10 +268,9 @@ export default async function buildApplication(watch = false, minifyBrowserClien
     try {
       const configData = fs.readFileSync(path.join(cwd, 'config', 'application.json'));
       const config = JSON5.parse(configData);
-      clientsConfig = config.clients
+      clientsConfig = config.clients;
     } catch(err) {
-      console.error(chalk.red(`[@soundworks/template-build]
-> Invalid \`config/application.json\` file`));
+      console.error(chalk.red(`[@soundworks/build-tools] Invalid \`config/application.json\` file`));
       process.exit(0);
     }
 
@@ -230,7 +296,9 @@ export default async function buildApplication(watch = false, minifyBrowserClien
 
       if (minifyBrowserClients) {
         console.log(chalk.yellow(`+ minifying browser client "${clientName}"`));
+
         const minOutputFile = path.join(cwd, '.build', 'public', `${clientName}.min.js`);
+
         await bundle(inputFile, minOutputFile, watch, true);
       }
     }

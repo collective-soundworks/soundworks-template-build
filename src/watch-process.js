@@ -14,7 +14,7 @@ const start = async function(src, inspect) {
   if (!fs.existsSync(src)) {
     console.log(chalk.red(`
 Cannot start process: file "${src}" does not exists.
-- try to run \`num run build\` again
+- try to run \`npm run build\` again
 `));
     return;
   }
@@ -29,7 +29,9 @@ Cannot start process: file "${src}" does not exists.
       await stop(src);
     }
 
-    const options = inspect ? { execArgv: ['--inspect', '--trace-deprecation'] } : {};
+    const options = inspect
+      ? { execArgv: ['--inspect', '--enable-source-maps', '--trace-deprecation'] }
+      : {};
     const delay = inspect ? 100 : 0;
 
     // @important - the timeout is needed for the inspect to properly exit
@@ -49,9 +51,7 @@ const stop = async function(src) {
     if (proc) {
       terminate(proc.pid, 'SIGINT', (err) => {
         if (err) {
-          console.log(`[@soundworks/template-build] could not stop ${src}`);
-          console.log(err);
-          reject();
+          reject(err);
         }
       });
     }
@@ -70,7 +70,7 @@ export default function watchProcess(processName, inspect) {
     // check folder exists
     // check client is declared as a "node" type in `config/application.json`
     if (!fs.existsSync(path.join('.build', 'clients', processName))) {
-      console.log(chalk.red(`[@soundworks/template-build]
+      console.log(chalk.red(`[@soundworks/devtools]
 > Can't watch process \`${processName}\`, path \`.build/clients/${processName}\` does not exists`));
       process.exit(0);
     }
@@ -83,14 +83,14 @@ export default function watchProcess(processName, inspect) {
       const config = JSON5.parse(configData);
       clientsConfig = config.clients
     } catch(err) {
-      console.log(chalk.red(`[@soundworks/template-build]
+      console.log(chalk.red(`[@soundworks/devtools]
 > Invalid \`config/application.json\` file`));
       console.log(err);
       process.exit(0);
     }
     // check client is declared as a "node" type in `config/application.json`
     if (!clientsConfig[processName] || clientsConfig[processName].target !== 'node') {
-      console.log(chalk.red(`[@soundworks/template-build]
+      console.log(chalk.red(`[@soundworks/devtools]
 > Process \`${processName}\` not declared as \`{ "target": "node" }\` in \`config/application.json\``));
       process.exit(0);
     }
@@ -103,10 +103,8 @@ export default function watchProcess(processName, inspect) {
   });
 
   console.log(chalk.cyan(`> watching process\t ${processPath}`));
-  // restart to principal target (processPath)
-  watcher
-    .on('change', debounce(filename => start(processPath, inspect), 500))
 
+  watcher.on('change', debounce(filename => start(processPath, inspect), 500))
   // as we ignore initial changes we can start the process now
   start(processPath, inspect);
 }
