@@ -1,11 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import chokidar from 'chokidar';
-import terminate from 'terminate';
-import { fork } from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fork } from 'node:child_process';
+
 import chalk from 'chalk';
+import chokidar from 'chokidar';
 import debounce from 'lodash.debounce';
 import JSON5 from 'json5';
+import terminate from 'terminate';
 
 const processes = new Map();
 
@@ -30,13 +31,17 @@ Cannot start process: file "${src}" does not exists.
     }
 
     const options = inspect
-      ? { execArgv: ['--inspect', '--enable-source-maps', '--trace-deprecation'] }
+      ? { execArgv: ['--inspect', '--trace-deprecation'] }
       : {};
+
+    Object.assign(options, { stdio: 'inherit' });
+
     const delay = inspect ? 100 : 0;
 
     // @important - the timeout is needed for the inspect to properly exit
     // the value has been chosen by "rule of thumb"
     setTimeout(() => {
+      // console.log(options);
       const proc = fork(src, [], options);
       processes.set(src, proc);
     }, delay);

@@ -39,5 +39,3 @@ if (options.deleteBuild) {
 if (options.clearCache) {
   clearCache();
 }
-
-

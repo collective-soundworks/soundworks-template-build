@@ -176,6 +176,7 @@ async function bundle(inputFile, outputFile, watch, minify) {
     return new Promise((resolve, reject) => {
       compiler.run((err, stats) => {
         if (err || stats.hasErrors()) {
+          // console.log(stats.compilation.errors[0].error.code);
           // no need to log these errors in the console, this is already done by babel
           if (stats.compilation.errors[0].error.code !== 'BABEL_PARSE_ERROR') {
             const err = filterStackTrace(stats.compilation.errors[0]);
@@ -202,11 +203,9 @@ async function bundle(inputFile, outputFile, watch, minify) {
       }, (err, stats) => { // Stats Object
         if (err || stats.hasErrors()) {
           // no need to log these errors in the console, this is already done by babel
-          if (stats.compilation.errors[0].error.code !== 'BABEL_PARSE_ERROR') {
-            const err = filterStackTrace(stats.compilation.errors[0]);
-            console.error(chalk.red('- build error:'));
-            console.error(err);
-          }
+          const err = filterStackTrace(stats.compilation.errors[0]);
+          console.error(chalk.red('- build error:'));
+          console.error(err);
 
           console.error(chalk.red(`- build failed   ${outputFile.replace(cwd, '')}`));
           initial = false; // if next build works we want to log it
