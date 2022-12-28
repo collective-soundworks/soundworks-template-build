@@ -17,7 +17,7 @@ const cwd = process.cwd();
 const require = createRequire(import.meta.url);
 
 // @todo - if app config says typescript, use /\.(js|mjs|ts|tsx)$/
-const supportedFilesRegExp = /\.(js|mjs)$/;
+const supportedFilesRegExp = /\.(js|jsx|mjs|ts|tsx)$/;
 
 // @todo - remove this...
 // we need support for iOS 9.3.5
@@ -34,7 +34,9 @@ async function transpile(inputFolder, outputFolder, watch) {
     }
 
     const inputFilename = pathname;
-    const outputFilename = inputFilename.replace(inputFolder, outputFolder);
+    const outputFilename = inputFilename
+      .replace(inputFolder, outputFolder)
+      .replace(/\.ts[x]?$/, '.js');
 
     if (supportedFilesRegExp.test(inputFilename)) {
       try {
@@ -269,7 +271,7 @@ export default async function buildApplication(watch = false, minifyBrowserClien
       const config = JSON5.parse(configData);
       clientsConfig = config.clients;
     } catch(err) {
-      console.error(chalk.red(`[@soundworks/build-tools] Invalid \`config/application.json\` file`));
+      console.error(chalk.red(`[@soundworks/build] Invalid \`config/application.json\` file`));
       process.exit(0);
     }
 
@@ -289,7 +291,20 @@ export default async function buildApplication(watch = false, minifyBrowserClien
     for (let clientName of clients) {
       console.log(chalk.yellow(`+ ${cmdString} browser client "${clientName}"`));
 
-      const inputFile = path.join(cwd, 'src', 'clients', clientName, 'index.js');
+      const jsInput = path.join(cwd, '.build', 'clients', clientName, 'index.js');
+      // const tsInput = path.join(cwd, '.build', 'clients', clientName, 'index.ts');
+      const inputFile = path.join(cwd, '.build', 'clients', clientName, 'index.js');
+
+      // if (fs.existsSync(jsInput)) {
+      //   inputFile = jsInput;
+      // } else if (fs.existsSync(tsInput)) {
+      //   inputFile = tsInput;
+      // } else {
+      //   throw new Error(`[@soundworks/build] Invalid client entry point for "${clientName}", no "input.js" nor "input.ts" file found`);
+      // }
+
+      // console.log(inputFile);
+
       const outputFile = path.join(cwd, '.build', 'public', `${clientName}.js`);
       await bundle(inputFile, outputFile, watch);
 
