@@ -1,6 +1,6 @@
 # `@soundworks/template-build`
 
-> `soundworks-template` build scripts for [soundworks#v3](https://github.com/collective-soundworks/soundworks)
+> `soundworks-template` build scripts for [soundworks#v4](https://github.com/collective-soundworks/soundworks)
 
 General approach:
 - `webpack` and `babel` to bundle browser clients
@@ -34,4 +34,4 @@ Should support iOS >= 9
 
 ## License
 
-BSD-3-Clause
+[BSD-3-Clause](./LICENSE)

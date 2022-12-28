@@ -1,1 +1,7 @@
-test
+.DS_Store
+Thumbs.db
+
+.eslintrc
+.editorconfig
+
+tests
